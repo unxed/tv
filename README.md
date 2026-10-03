@@ -35,3 +35,10 @@ Under DOS: `tools/build-fpc-go32v2.sh` and `tools/dos-run.sh` (see `.github/work
 Add `tv/src` to the unit path (`-Fu`); in the program use `TvApp` (the application),
 `TvViews`, `TvWindow`, `TvMenus` and a backend: `TvDos` under DOS or `TvMem` in tests.
 The minimal example is `demo/tvdemo.pas`.
+
+## History
+
+This repository was split out of [unxed/dn](https://github.com/unxed/dn) (directory `tv/`). Its history is the history of that
+directory in `dn` up to `dn` commit `b8f2bd1` (the commits that touched `tv/`, with their original messages and dates, so some
+messages mention `PLAN.md` and other parts of `dn`; the hashes differ from the ones in `dn`). Development continues in `dn`
+and is copied here.
