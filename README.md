@@ -36,7 +36,8 @@ without DN: a program on Turbo Vision needs TV, not a file manager.
 - `tools/tvhc.pas`: the help compiler (`.htx` to `.hlp`, the format of the Borland help compiler).
 
 The backends: `TvDos` (DOS: video memory, BIOS keyboard, INT 33h mouse), `TvUnix` with `TvTermIo`/`TvTermOs` (Unix terminals and the Windows console:
-raw mode, ANSI output, key and mouse reports; the terminal protocols are in `DESIGN.md`), `TvMem` (tests). The embedded terminal: `TvVt` (emulator),
+raw mode, ANSI output, key and mouse reports; the terminal protocols are in `DESIGN.md`), `TvMem` (tests). Keys in a terminal: the xterm and Kitty protocols are understood, and the **win32 input mode** (`ESC [ ? 9001 h`: every key and combination of Windows Terminal, conhost, WezTerm...; asked for by default in Windows Terminal, `TV_WIN32_INPUT=1|0` forces it).
+The embedded terminal: `TvVt` (emulator),
 `TvPty` (a pty and the program), `TvVtKeys`, `TvVtView` (the view), `TvVtRun` (run a program on the whole screen and keep what it drew).
 
 ## Build and check
