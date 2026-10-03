@@ -40,5 +40,8 @@ The minimal example is `demo/tvdemo.pas`.
 
 This repository was split out of [unxed/dn](https://github.com/unxed/dn) (directory `tv/`). Its history is the history of that
 directory in `dn` up to `dn` commit `b8f2bd1` (the commits that touched `tv/`, with their original messages and dates, so some
-messages mention `PLAN.md` and other parts of `dn`; the hashes differ from the ones in `dn`). Development continues in `dn`
-and is copied here.
+messages mention `PLAN.md` and other parts of `dn`; the hashes differ from the ones in `dn`).
+
+**Development continues here, in this repository.** `dn` no longer has a copy of this code: it uses this repository as the git
+submodule `tv/` (the commit recorded in `dn` is the version DN builds with). A change to TV is made and tested here; then `dn` moves
+its pointer (`git -C tv pull && git add tv`).
