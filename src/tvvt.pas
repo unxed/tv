@@ -14,7 +14,7 @@ unit TvVt;
 interface
 
 uses
-  TvColors, TvCell, TvUtf8;
+  TvColors, TvCell, TvUtf8, TvClip;
 
 const
   MaxVtParams = 24;
@@ -26,6 +26,8 @@ type
   TVtBellProc = procedure(Data: Pointer);
   { OSC 52: the program sets the clipboard (Text is the decoded text, UTF-8) }
   TVtClipProc = procedure(Data: Pointer; const Text: AnsiString);
+  { OSC 52 with "?": the program asks for the clipboard; False if there is none (then the answer is an empty text) }
+  TVtClipGetFunc = function(Data: Pointer; out Text: AnsiString): Boolean;
 
   PVtEmu = ^TVtEmu;
   TVtEmu = object
@@ -100,6 +102,7 @@ type
     OnTitle: TVtTitleProc;
     OnBell: TVtBellProc;
     OnClip: TVtClipProc;
+    OnClipGet: TVtClipGetFunc;
     Data: Pointer;
     constructor Init(ACols, ARows: Integer; AHistory: Integer = 1000);
     destructor Done;
@@ -175,37 +178,6 @@ begin
   Result := S;
 end;
 
-function Base64Decode(const S: AnsiString): AnsiString;
-var
-  I, Acc, Bits, V: Integer;
-  C: Char;
-begin
-  Result := '';
-  Acc := 0;
-  Bits := 0;
-  for I := 1 to Length(S) do
-  begin
-    C := S[I];
-    case C of
-      'A'..'Z': V := Ord(C) - 65;
-      'a'..'z': V := Ord(C) - 97 + 26;
-      '0'..'9': V := Ord(C) - 48 + 52;
-      '+', '-': V := 62;
-      '/', '_': V := 63;
-    else
-      Continue;
-    end;
-    Acc := (Acc shl 6) or V;
-    Inc(Bits, 6);
-    if Bits >= 8 then
-    begin
-      Dec(Bits, 8);
-      Result := Result + Chr((Acc shr Bits) and $FF);
-      Acc := Acc and ((1 shl Bits) - 1);
-    end;
-  end;
-end;
-
 function CellText(const C: TScreenCell): AnsiString;
 begin
   if ScIsWideTrail(C.Character) then
@@ -237,6 +209,7 @@ begin
   OnTitle := nil;
   OnBell := nil;
   OnClip := nil;
+  OnClipGet := nil;
   Data := nil;
   Reset;
 end;
@@ -943,7 +916,7 @@ end;
 procedure TVtEmu.OscDone;
 var
   P, Code: Integer;
-  Text, Arg: AnsiString;
+  Text, Arg, Sel, Clip: AnsiString;
   Err: Integer;
 begin
   P := Pos(';', Osc);
@@ -966,7 +939,19 @@ begin
         if P > 0 then
         begin
           Arg := Copy(Text, P + 1, MaxInt);
-          if (Arg <> '?') and Assigned(OnClip) then
+          if Arg = '?' then
+          begin
+            { the program reads the clipboard: the answer is the same string with the text in base64 (the selection is as asked, c by default) }
+            Sel := Copy(Text, 1, P - 1);
+            if Sel = '' then
+              Sel := 'c';
+            Clip := '';
+            if Assigned(OnClipGet) then
+              if not OnClipGet(Data, Clip) then
+                Clip := '';
+            Answer(#27']52;' + Sel + ';' + Base64Encode(Clip) + #27'\');
+          end
+          else if Assigned(OnClip) then
             OnClip(Data, Base64Decode(Arg));
         end;
       end;

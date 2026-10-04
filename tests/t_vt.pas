@@ -24,6 +24,12 @@ begin
   Clip := T;
 end;
 
+function OnCG(Data: Pointer; out T: AnsiString): Boolean;
+begin
+  T := 'Привет';
+  Result := True;
+end;
+
 function ScreenText: AnsiString;
 var
   Y: Integer;
@@ -249,6 +255,16 @@ begin
   Check((E.Title = 'abc') and (Bells = 0), 'OSC 2: the title (ST)');
   E.Feed(#27']52;c;0J+dgNC30L3Qsg=='#7);
   Check(Clip <> '', 'OSC 52 gives the clipboard text');
+  { OSC 52 with "?": the program reads the clipboard }
+  E.OnClipGet := @OnCG;
+  E.TakeReply;
+  E.Feed(#27']52;c;?'#7);
+  Check(E.TakeReply = #27']52;c;0J+dgNC30L3Qsg=='#27'\', 'OSC 52 ?: the answer has the text in base64');
+  E.Feed(#27']52;p;?'#27'\');
+  Check(E.TakeReply = #27']52;p;0J+dgNC30L3Qsg=='#27'\', 'OSC 52 ?: the selection is echoed');
+  E.OnClipGet := nil;
+  E.Feed(#27']52;c;?'#7);
+  Check(E.TakeReply = #27']52;c;'#27'\', 'OSC 52 ?: no clipboard, an empty answer');
   Clip := '';
   E.Feed(#27']52;c;0J/RgNC40LLQtdGC'#7);
   Check(Clip = 'Привет', 'OSC 52: the text is decoded (UTF-8)');

@@ -40,6 +40,8 @@ function OemToUtf8(const S: AnsiString): AnsiString;
 function ToCrLf(const S: AnsiString): AnsiString;
 { Base64 (RFC 4648, with the padding): for OSC 52. }
 function Base64Encode(const S: AnsiString): AnsiString;
+{ The text of Base64 (the characters that do not belong to the alphabet are skipped; the URL alphabet is taken too). }
+function Base64Decode(const S: AnsiString): AnsiString;
 { Every line break becomes LF. }
 function ToLf(const S: AnsiString): AnsiString;
 
@@ -214,6 +216,37 @@ begin
     else
       Result := Result + '=';
     Inc(I, 3);
+  end;
+end;
+
+function Base64Decode(const S: AnsiString): AnsiString;
+var
+  I, Acc, Bits, V: Integer;
+  C: Char;
+begin
+  Result := '';
+  Acc := 0;
+  Bits := 0;
+  for I := 1 to Length(S) do
+  begin
+    C := S[I];
+    case C of
+      'A'..'Z': V := Ord(C) - 65;
+      'a'..'z': V := Ord(C) - 97 + 26;
+      '0'..'9': V := Ord(C) - 48 + 52;
+      '+', '-': V := 62;
+      '/', '_': V := 63;
+    else
+      Continue;
+    end;
+    Acc := (Acc shl 6) or V;
+    Inc(Bits, 6);
+    if Bits >= 8 then
+    begin
+      Dec(Bits, 8);
+      Result := Result + Chr((Acc shr Bits) and $FF);
+      Acc := Acc and ((1 shl Bits) - 1);
+    end;
   end;
 end;
 

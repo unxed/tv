@@ -26,7 +26,19 @@ implementation
 
 {$IFDEF LINUX}
 uses
-  TvGeom, TvCell, TvEvents, TvKeys, TvSys, TvScreen, TvViews, TvPty, TvVtKeys;
+  TvGeom, TvCell, TvEvents, TvKeys, TvSys, TvScreen, TvViews, TvPty, TvVtKeys, TvClip;
+
+{ OSC 52 of the program on the whole screen: it sets and reads the clipboard of the application }
+procedure RunClip(Data: Pointer; const Text: AnsiString);
+begin
+  ClipboardSetText(Text);
+end;
+
+function RunClipGet(Data: Pointer; out Text: AnsiString): Boolean;
+begin
+  Text := ClipboardGetText;
+  Result := True;
+end;
 
 procedure FitEmu(var Emu: TVtEmu);
 begin
@@ -85,6 +97,8 @@ begin
   if Emu.Cols = 0 then
     Emu.Init(ScreenWidth, ScreenHeight, 2000);
   FitEmu(Emu);
+  Emu.OnClip := @RunClip;
+  Emu.OnClipGet := @RunClipGet;
   if Echo <> '' then
     Emu.Feed(Echo + #13#10);
   if not Pty.Open(Emu.Cols, Emu.RowCount, Prog, Args, Cwd) then

@@ -78,5 +78,7 @@ begin
   Check(Base64Encode('fo') = 'Zm8=', 'base64: two bytes');
   Check(Base64Encode('foo') = 'Zm9v', 'base64: three bytes');
   Check(Base64Encode('foobar') = 'Zm9vYmFy', 'base64: six bytes');
+  Check((Base64Decode('Zg==') = 'f') and (Base64Decode('Zm8=') = 'fo') and (Base64Decode('Zm9vYmFy') = 'foobar') and (Base64Decode('') = ''), 'base64: decode');
+  Check(Base64Decode('Zm9v'#10'YmFy') = 'foobar', 'base64: the characters of the alphabet only are taken');
   Finish;
 end.

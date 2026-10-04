@@ -37,6 +37,9 @@ without DN: a program on Turbo Vision needs TV, not a file manager.
 
 The backends: `TvDos` (DOS: video memory, BIOS keyboard, INT 33h mouse), `TvUnix` with `TvTermIo`/`TvTermOs` (Unix terminals and the Windows console:
 raw mode, ANSI output, key and mouse reports; the terminal protocols are in `DESIGN.md`), `TvMem` (tests). Keys in a terminal: **the far2l terminal extensions** (`TvFar2l`: the terminal sends every key and the mouse as events, takes and gives the clipboard; asked for by default, `TV_FAR2L=0` switches it off), the xterm and Kitty protocols are understood, and the **win32 input mode** (`ESC [ ? 9001 h`: every key and combination of Windows Terminal, conhost, WezTerm...; asked for by default in Windows Terminal, `TV_WIN32_INPUT=1|0` forces it).
+The clipboard: `TvClip` keeps the text of the program; it goes to the system clipboard (Windows), to the far2l terminal, or to the terminal by **OSC 52** (`TV_CLIPBOARD=0` switches that off).
+Reading the clipboard of the terminal by OSC 52 (`ESC ] 52 ; c ; ? ESC \`) is **off by default** (most terminals refuse, some ask the user): `TV_OSC52_READ=1` turns it on, `TV_OSC52_WAIT` is the wait in ms (400);
+a terminal that does not answer is not asked again for a minute. In the embedded terminal (`TvVt`) a program sets the clipboard by OSC 52 and reads it with `?`: the answer comes from the clipboard of the application.
 The embedded terminal: `TvVt` (emulator),
 `TvPty` (a pty and the program), `TvVtKeys`, `TvVtView` (the view), `TvVtRun` (run a program on the whole screen and keep what it drew).
 
