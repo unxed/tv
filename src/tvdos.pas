@@ -35,6 +35,16 @@ procedure DosDumpScreen(const FileName: string);
   9x, XP DOS box) or an emulator has it. DosInit connects it to TvClip. Text is UTF-8 in the
   program and CF_OEMTEXT in the current code page in the clipboard. }
 function DosClipboardAvailable: Boolean;
+{ True when the clipboard text goes as UTF-8 (the provider DOS-UTF8/CLIPBRD of AMIS was found and the mode was switched on for this process: go2dos, DOSBox-X patched);
+  else it is CF_OEMTEXT in the current code page. TV_DOS_UTF8_CLIP=0 keeps the code page. }
+function DosClipUtf8: Boolean;
+
+{ AMIS (INT 2Dh): the providers of the extensions that a DOS program can switch on for itself. AmisFind looks for the provider with the manufacturer Mfr (8
+  characters) and the product Prod (8 characters, padded with spaces), Mux is its multiplex number; AmisSetEncoding calls its function 10h (set the encoding for this
+  process: 65001 UTF-8, 0 the code page of the system: DOS-UTF8/NAMES for the file names, DOS-UTF8/CLIPBRD for the clipboard). }
+function AmisFind(const Mfr, Prod: AnsiString; out Mux: Byte): Boolean;
+function AmisSetEncoding(Mux: Byte; Encoding: Word): Boolean;
+
 function DosClipSet(const Text: AnsiString): Boolean;
 function DosClipGet(out Text: AnsiString): Boolean;
 
@@ -419,6 +429,71 @@ begin
   Result := R.ax <> $1700;
 end;
 
+var
+  ClipUtf8: Boolean = False;
+
+function DosClipUtf8: Boolean;
+begin
+  Result := ClipUtf8;
+end;
+
+function AmisFind(const Mfr, Prod: AnsiString; out Mux: Byte): Boolean;
+var
+  V: tseginfo;
+  R: TRealRegs;
+  M: Integer;
+  Sig: array[0..15] of Char;
+  Want: AnsiString;
+begin
+  Result := False;
+  Mux := 0;
+  if not get_rm_interrupt($2D, V) then
+    Exit;
+  if (V.segment = 0) and (V.offset = nil) then
+    Exit;                                       { no INT 2Dh: nothing to ask }
+  Want := Mfr + Prod;
+  if Length(Want) <> 16 then
+    Exit;
+  for M := 0 to 255 do
+  begin
+    FillChar(R, SizeOf(R), 0);
+    R.ax := M shl 8;                            { AH = the multiplex number, AL = 0: the installation check }
+    realintr($2D, R);
+    if R.al <> $FF then
+      Continue;
+    FillChar(Sig, SizeOf(Sig), 0);
+    dosmemget(R.dx, R.di, Sig, 16);             { DX:DI -> the signature: 8 + 8 bytes }
+    if CompareByte(Sig, Want[1], 16) = 0 then
+    begin
+      Mux := M;
+      Exit(True);
+    end;
+  end;
+end;
+
+function AmisSetEncoding(Mux: Byte; Encoding: Word): Boolean;
+var
+  R: TRealRegs;
+begin
+  FillChar(R, SizeOf(R), 0);
+  R.ax := (Mux shl 8) or $10;
+  R.bx := Encoding;
+  realintr($2D, R);
+  Result := R.al = $FF;
+end;
+
+{ the clipboard of the program goes as UTF-8 if the provider is there }
+procedure ClipTryUtf8;
+var
+  Mux: Byte;
+begin
+  ClipUtf8 := False;
+  if GetEnv('TV_DOS_UTF8_CLIP') = '0' then
+    Exit;
+  if AmisFind('DOS-UTF8', 'CLIPBRD ', Mux) then
+    ClipUtf8 := AmisSetEncoding(Mux, 65001);
+end;
+
 function DosClipSet(const Text: AnsiString): Boolean;
 var
   R: TRealRegs;
@@ -429,7 +504,10 @@ var
   Opened: Boolean;
 begin
   Result := False;
-  Data := ToCrLf(Utf8ToOem(Text));
+  if ClipUtf8 then
+    Data := ToCrLf(Text)
+  else
+    Data := ToCrLf(Utf8ToOem(Text));
   if Length(Data) > ClipMax then
     SetLength(Data, ClipMax);
   Size := Length(Data) + 1;                  { the text ends with a NUL }
@@ -493,7 +571,10 @@ begin
         { the text is NUL-terminated }
         if Pos(#0, Data) > 0 then
           SetLength(Data, Pos(#0, Data) - 1);
-        Text := OemToUtf8(Data);
+        if ClipUtf8 then
+          Text := Data
+        else
+          Text := OemToUtf8(Data);
         Result := True;
       end;
       global_dos_free(L shr 16);
@@ -599,6 +680,7 @@ begin
   InitMouse;
   if DosClipboardAvailable then
   begin
+    ClipTryUtf8;
     OnClipboardSet := @DosClipSet;
     OnClipboardGet := @DosClipGet;
   end;

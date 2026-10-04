@@ -45,6 +45,8 @@ a terminal that does not answer is not asked again for a minute. In the embedded
 fields out from the key code (a US layout). The release of a key is `evKeyUp`: it is made only if a program asks (`TvSys.KeyUpEvents := True`) and the terminal sends it; it goes the way of a key but
 only a view with `evKeyUp` in its `EventMask` gets it, so nothing that knows nothing of it changes. The embedded terminal (`TvVt`) takes a program's request `ESC [ ? 9001 h` (`Emu.Win32Input`):
 `VtKeyBytes(Event, AppCursor, True)` gives `ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _` for every key and release (a pair of such sequences above U+FFFF), and `TvVtView`/`TvVtRun` ask the backend for the releases.
+DOS: the clipboard is WinOldAp (INT 2Fh 17xx); if the provider `DOS-UTF8/CLIPBRD` is there (AMIS, INT 2Dh: go2dos, DOSBox-X with the patches) the text goes as UTF-8 and nothing is lost to the
+code page (`TV_DOS_UTF8_CLIP=0` keeps CF_OEMTEXT); `AmisFind`/`AmisSetEncoding` of `TvDos` find a provider and switch an encoding on for the process (DN uses them for `DOS-UTF8/NAMES`).
 The embedded terminal: `TvVt` (emulator),
 `TvPty` (a pty and the program), `TvVtKeys`, `TvVtView` (the view), `TvVtRun` (run a program on the whole screen and keep what it drew).
 
