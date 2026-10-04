@@ -253,7 +253,7 @@ begin
   Check((E.Title = 'Привет') and (Titles = '[Привет]'), 'OSC 0: the title (BEL)');
   E.Feed(#27']2;abc'#27'\');
   Check((E.Title = 'abc') and (Bells = 0), 'OSC 2: the title (ST)');
-  E.Feed(#27']52;c;0J+dgNC30L3Qsg=='#7);
+  E.Feed(#27']52;c;0J/RgNC40LLQtdGC'#7);
   Check(Clip <> '', 'OSC 52 gives the clipboard text');
   { the keyboard protocol of Kitty: the flags of a program }
   E.TakeReply;
@@ -283,9 +283,9 @@ begin
   E.OnClipGet := @OnCG;
   E.TakeReply;
   E.Feed(#27']52;c;?'#7);
-  Check(E.TakeReply = #27']52;c;0J+dgNC30L3Qsg=='#27'\', 'OSC 52 ?: the answer has the text in base64');
+  Check(E.TakeReply = #27']52;c;0J/RgNC40LLQtdGC'#27'\', 'OSC 52 ?: the answer has the text in base64');
   E.Feed(#27']52;p;?'#27'\');
-  Check(E.TakeReply = #27']52;p;0J+dgNC30L3Qsg=='#27'\', 'OSC 52 ?: the selection is echoed');
+  Check(E.TakeReply = #27']52;p;0J/RgNC40LLQtdGC'#27'\', 'OSC 52 ?: the selection is echoed');
   E.OnClipGet := nil;
   E.Feed(#27']52;c;?'#7);
   Check(E.TakeReply = #27']52;c;'#27'\', 'OSC 52 ?: no clipboard, an empty answer');
