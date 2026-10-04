@@ -370,6 +370,9 @@ begin
   Check(Message(V1, evCommand, cmOK, nil) = V1, 'a message that is handled returns the receiver');
   Check(Message(V1, evCommand, cmCancel, nil) = nil, 'a message that is not handled returns nil');
   Check(Message(nil, evCommand, cmOK, nil) = nil, 'a message to nil');
+  Ev.KeyCode := $1C0D;
+  V1^.ClearEvent(Ev);
+  Check((Ev.KeyCode = $1C0D) and (Ev.CharCode = $0D) and (Ev.ScanCode = $1C), 'ClearEvent keeps the key');
   V1^.ClearEvent(Ev);
   Check((Ev.What = evNothing) and (Ev.InfoPtr = V1), 'ClearEvent');
   Dispose(V1, Done);
