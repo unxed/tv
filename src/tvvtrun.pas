@@ -194,7 +194,7 @@ begin
   if (Pause = 1) or ((Pause = 2) and (Result <> 0)) then
   begin
     Emu.Feed(#13#10#27'[7m [ Process ended (' + Chr(48 + (Result div 100) mod 10) + Chr(48 + (Result div 10) mod 10) + Chr(48 + Result mod 10) +
-      '): Press Enter ] '#27'[0m');
+      '): Press Enter ] '#27'[0m'#13#10);
     Blit(Emu, False);
     repeat
       PollEvent(100, Ev);
