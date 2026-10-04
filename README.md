@@ -47,6 +47,9 @@ only a view with `evKeyUp` in its `EventMask` gets it, so nothing that knows not
 `VtKeyBytes(Event, AppCursor, True)` gives `ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _` for every key and release (a pair of such sequences above U+FFFF), and `TvVtView`/`TvVtRun` ask the backend for the releases.
 DOS: the clipboard is WinOldAp (INT 2Fh 17xx); if the provider `DOS-UTF8/CLIPBRD` is there (AMIS, INT 2Dh: go2dos, DOSBox-X with the patches) the text goes as UTF-8 and nothing is lost to the
 code page (`TV_DOS_UTF8_CLIP=0` keeps CF_OEMTEXT); `AmisFind`/`AmisSetEncoding` of `TvDos` find a provider and switch an encoding on for the process (DN uses them for `DOS-UTF8/NAMES`).
+**The keyboard protocol of Kitty** (2026-10-04): the outer terminal is asked for the flags 1 and 4 as before; when a program wants the releases (`TvSys.KeyUpEvents`) the flag 2 is set (`CSI = 2 ; 2 u`), repeats are presses, releases are `evKeyUp`.
+The embedded terminal takes the flags of a program (`CSI > f u`, `CSI < n u`, `CSI = f ; m u`, `CSI ? u`: `Emu.KittyFlags`) and `VtKeyBytes(..., Kitty)` encodes the keys: 1 (Esc, and the keys with Ctrl or Alt, as `CSI code ; modifiers u`), 2 (the types of events:
+`CSI ... ; m : 3 ...` for a release) and 8 (every key as an escape code). Not done: the flags 4 (alternate keys) and 16 (the text of a key), the modifiers Super, Hyper, Meta, Caps Lock, Num Lock.
 The embedded terminal: `TvVt` (emulator),
 `TvPty` (a pty and the program), `TvVtKeys`, `TvVtView` (the view), `TvVtRun` (run a program on the whole screen and keep what it drew).
 

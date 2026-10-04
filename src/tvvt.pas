@@ -96,6 +96,9 @@ type
     CursorVisible: Boolean;
     CursorShape: Integer;                { DECSCUSR: 0/1 blinking block, 2 block, 3/4 underline, 5/6 bar }
     AppCursor, AppKeypad, BracketedPaste, FocusEvents, ReverseScreen: Boolean;
+    KittyFlags: Integer;                 { the keyboard protocol of Kitty that the program asked for: 1 disambiguate, 2 the types of events, 8 every key as an escape code (4, 16 are not used) }
+    KittyStack: array[0..31] of Integer;
+    KittyDepth: Integer;
     Win32Input: Boolean;                 { ESC [ ? 9001 h: the program wants the keys as KEY_EVENT_RECORDs (TvVtKeys) and their releases }
     MouseMode: Integer;                  { 0: none, 9, 1000 (press and release), 1002 (and drag), 1003 (all moves) }
     MouseEnc: Integer;                   { 0: X10 bytes, 1005 (UTF-8), 1006 (SGR), 1015 (urxvt) }
@@ -172,6 +175,14 @@ begin
 end;
 
 function IntStr(V: LongInt): AnsiString;
+var
+  S: string[16];
+begin
+  Str(V, S);
+  Result := S;
+end;
+
+function IStr(V: LongInt): AnsiString;
 var
   S: string[16];
 begin
@@ -273,6 +284,8 @@ begin
   CursorVisible := True; CursorShape := 0;
   AppCursor := False; AppKeypad := False; BracketedPaste := False; FocusEvents := False; ReverseScreen := False;
   Win32Input := False;
+  KittyFlags := 0;
+  KittyDepth := 0;
   MouseMode := 0; MouseEnc := 0;
   Title := '';
   SetLength(Tabs, FCols);
@@ -1011,6 +1024,37 @@ begin
   end;
   if Inter <> #0 then
     Exit;
+  if (F = 'u') and ((Marker = '>') or (Marker = '<') or (Marker = '=') or (Marker = '?')) then
+  begin
+    { the keyboard protocol of Kitty: > flags pushes, < n pops, = flags ; mode sets (1 the flags, 2 adds, 3 removes), ? asks }
+    case Marker of
+      '>': begin
+             if KittyDepth < 32 then
+             begin
+               KittyStack[KittyDepth] := KittyFlags;
+               Inc(KittyDepth);
+             end;
+             KittyFlags := Param(0, 0) and 31;
+           end;
+      '<': begin
+             N := Param(0, 1);
+             while (N > 0) and (KittyDepth > 0) do
+             begin
+               Dec(KittyDepth);
+               KittyFlags := KittyStack[KittyDepth];
+               Dec(N);
+             end;
+           end;
+      '=': case Param(1, 1) of
+             2: KittyFlags := KittyFlags or (Param(0, 0) and 31);
+             3: KittyFlags := KittyFlags and not (Param(0, 0) and 31);
+           else
+             KittyFlags := Param(0, 0) and 31;
+           end;
+      '?': Answer(#27'[?' + IStr(KittyFlags) + 'u');
+    end;
+    Exit;
+  end;
   if (Marker = '>') or (Marker = '=') then
   begin
     if F = 'c' then

@@ -255,6 +255,24 @@ begin
   Check((E.Title = 'abc') and (Bells = 0), 'OSC 2: the title (ST)');
   E.Feed(#27']52;c;0J+dgNC30L3Qsg=='#7);
   Check(Clip <> '', 'OSC 52 gives the clipboard text');
+  { the keyboard protocol of Kitty: the flags of a program }
+  E.TakeReply;
+  E.Feed(#27'[>5u');
+  Check(E.KittyFlags = 5, 'kitty: CSI > 5 u pushes the flags');
+  E.Feed(#27'[?u');
+  Check(E.TakeReply = #27'[?5u', 'kitty: CSI ? u tells the flags');
+  E.Feed(#27'[>8u');
+  Check(E.KittyFlags = 8, 'kitty: a second push');
+  E.Feed(#27'[<u');
+  Check(E.KittyFlags = 5, 'kitty: CSI < u pops');
+  E.Feed(#27'[=2;2u');
+  Check(E.KittyFlags = 7, 'kitty: CSI = 2 ; 2 u adds the bit');
+  E.Feed(#27'[=2;3u');
+  Check(E.KittyFlags = 5, 'kitty: CSI = 2 ; 3 u removes the bit');
+  E.Feed(#27'[=9;1u');
+  Check(E.KittyFlags = 9, 'kitty: CSI = 9 ; 1 u sets the flags');
+  E.Feed(#27'[<5u');
+  Check(E.KittyFlags = 0, 'kitty: pops more than there is: the flags are as at the start');
   { the win32 input mode of a program }
   Check(not E.Win32Input, 'win32 input: off at the start');
   E.Feed(#27'[?9001h');

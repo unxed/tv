@@ -13,8 +13,9 @@ uses
   TvEvents;
 
 { the bytes for a key event; '' when the key has none (a modifier alone, a key that no terminal sends). Win32: the program asked for the win32 input mode (ESC [ ? 9001 h):
-  every key and every release (evKeyUp) is ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _ (the fields of KEY_EVENT_RECORD); a character above U+FFFF is a pair of such sequences. }
-function VtKeyBytes(const Event: TEvent; AppCursor: Boolean; Win32: Boolean = False): AnsiString;
+  every key and every release (evKeyUp) is ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _ (the fields of KEY_EVENT_RECORD); a character above U+FFFF is a pair of such sequences.
+  Kitty: the flags of the keyboard protocol of Kitty that the program asked for (CSI > flags u): 1 disambiguate (Esc, and keys with Ctrl or Alt, as CSI code ; modifiers u), 2 the types of events (the releases), 8 every key as an escape code. }
+function VtKeyBytes(const Event: TEvent; AppCursor: Boolean; Win32: Boolean = False; Kitty: Integer = 0): AnsiString;
 
 { the report of a mouse event at the cell (X, Y) of the terminal (0-based) for the mouse mode (9, 1000, 1002, 1003) and the encoding (0, 1005, 1006, 1015).
   Press: Down = True, Button 0..2 (left, middle, right); release: Down = False; wheel: Wheel 1 (up) or 2 (down); a move: Moved = True.
@@ -67,6 +68,112 @@ begin
   end;
 end;
 
+{ the keyboard protocol of Kitty. A key that is a character (or Enter, Tab, Backspace, Esc) becomes CSI code ; modifiers : type u when the flags want it; a functional key
+  (the cursor keys, F1..F12, Home...) keeps its legacy sequence and gets the type of the event if the flags say so. Done is False when the legacy bytes are right. }
+function KittyKeyBytes(const Event: TEvent; Flags: Integer; AppCursor: Boolean; out Done: Boolean): AnsiString;
+var
+  Mods, M, T, Code, Used: Integer;
+  Cp: LongWord;
+  Ev2: TEvent;
+  Legacy, Rest, Num, Fin: AnsiString;
+  P: Integer;
+  Escaped: Boolean;
+
+  function Tail(Wanted: Boolean): AnsiString;
+  begin
+    Result := '';
+    if (M > 1) or (Wanted and (T <> 1)) then
+    begin
+      Result := ';' + IntStr(M);
+      if Wanted and (T <> 1) then
+        Result := Result + ':' + IntStr(T);
+    end;
+  end;
+
+begin
+  Done := False;
+  Result := '';
+  T := 1;
+  if Event.What = evKeyUp then
+    T := 3;
+  Mods := Event.ControlKeyState;
+  M := ModValue(Mods);
+  Code := 0;
+  case Event.KeyCode of
+    kbEsc: Code := 27;
+    kbEnter, kbCtrlEnter: Code := 13;
+    kbTab, kbShiftTab: Code := 9;
+    kbBack, kbCtrlBack: Code := 127;
+  end;
+  if Event.KeyCode = kbShiftTab then
+    M := ModValue(Mods or kbShift);
+  if (Event.KeyCode = kbCtrlEnter) or (Event.KeyCode = kbCtrlBack) then
+    M := ModValue(Mods or kbCtrlShift);
+  if Code = 0 then
+  begin
+    if Event.TextLength > 0 then
+    begin
+      if Utf8Decode(@Event.Text[0], Event.TextLength, Cp, Used) then
+      begin
+        Code := Cp;
+        if (Code >= Ord('A')) and (Code <= Ord('Z')) then
+          Inc(Code, 32);                     { the code of a letter is the one of the key, lower case }
+      end;
+    end
+    else if (Event.CharCode >= 1) and (Event.CharCode <= 26) and (Event.ScanCode = 0) then
+    begin
+      Code := Event.CharCode + 96;           { Ctrl and a letter without text: the letter }
+      M := ModValue(Mods or kbCtrlShift);
+    end;
+  end;
+  if Code <> 0 then
+  begin
+    Escaped := ((Flags and 8) <> 0) or (Code = 27) or ((Mods and (kbCtrlShift or kbAltShift)) <> 0)
+      or (M > 4) or ((Event.KeyCode = kbShiftTab) or (Event.KeyCode = kbCtrlEnter) or (Event.KeyCode = kbCtrlBack));
+    if not Escaped then
+    begin
+      if T = 3 then
+      begin
+        Done := True;                        { the release of a character that is sent as text: nothing }
+        Exit('');
+      end;
+      Exit;                                  { the legacy bytes }
+    end;
+    Done := True;
+    if (T = 3) and ((Flags and 2) = 0) then
+      Exit('');
+    Result := #27'[' + IntStr(Code) + Tail((Flags and 2) <> 0) + 'u';
+    Exit;
+  end;
+  { a functional key: its legacy sequence, with the type of the event }
+  Ev2 := Event;
+  Ev2.What := evKeyDown;
+  Legacy := VtKeyBytes(Ev2, AppCursor, False, 0);
+  if (Length(Legacy) >= 3) and (Legacy[1] = #27) and ((Legacy[2] = '[') or (Legacy[2] = 'O')) then
+  begin
+    Done := True;
+    if (T = 3) and ((Flags and 2) = 0) then
+      Exit('');
+    if (T = 1) or ((Flags and 2) = 0) then
+      Exit(Legacy);
+    Rest := Copy(Legacy, 3, MaxInt);
+    Fin := Copy(Rest, Length(Rest), 1);
+    Rest := Copy(Rest, 1, Length(Rest) - 1);
+    P := Pos(';', Rest);
+    if P > 0 then
+      Num := Copy(Rest, 1, P - 1)
+    else
+      Num := Rest;
+    if Num = '' then
+      Num := '1';
+    if Fin = '~' then
+      Result := #27'[' + Num + Tail(True) + '~'
+    else
+      Result := #27'[1' + Tail(True) + Fin;
+    Exit;
+  end;
+end;
+
 { the win32 input mode: the sequence of one KEY_EVENT_RECORD }
 function Win32Seq(Vk, Sc, Uc, Kd, Cs, Rc: LongInt): AnsiString;
 begin
@@ -104,8 +211,9 @@ begin
     Result := Win32Seq(Vk, Sc, Lo, Kd, Cs, Rc);
 end;
 
-function VtKeyBytes(const Event: TEvent; AppCursor: Boolean; Win32: Boolean): AnsiString;
+function VtKeyBytes(const Event: TEvent; AppCursor: Boolean; Win32: Boolean; Kitty: Integer): AnsiString;
 var
+  Done: Boolean;
   Mods: Word;
   K: Word;
   C: Byte;
@@ -115,6 +223,12 @@ begin
   Result := '';
   if Win32 then
     Exit(Win32KeyBytes(Event));
+  if Kitty <> 0 then
+  begin
+    Result := KittyKeyBytes(Event, Kitty, AppCursor, Done);
+    if Done then
+      Exit;
+  end;
   if Event.What = evKeyUp then
     Exit('');                                    { the releases are only for the win32 input mode }
   Mods := Event.ControlKeyState;

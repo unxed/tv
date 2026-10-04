@@ -124,7 +124,7 @@ begin
     until (N = 0) or (Total >= 65536);
     S := Emu.TakeReply;
     Send(S);
-    KeyUpEvents := Emu.Win32Input;
+    KeyUpEvents := Emu.Win32Input or ((Emu.KittyFlags and 2) <> 0);
     Blit(Emu, All);
     All := False;
     if Over then
@@ -147,11 +147,11 @@ begin
             PasteOpen := False;
             Send(#27'[201~');
           end;
-          Send(VtKeyBytes(Ev, Emu.AppCursor, Emu.Win32Input));
+          Send(VtKeyBytes(Ev, Emu.AppCursor, Emu.Win32Input, Emu.KittyFlags));
         end;
       evKeyUp:
-        if Emu.Win32Input then
-          Send(VtKeyBytes(Ev, Emu.AppCursor, True));
+        if Emu.Win32Input or ((Emu.KittyFlags and 2) <> 0) then
+          Send(VtKeyBytes(Ev, Emu.AppCursor, Emu.Win32Input, Emu.KittyFlags));
       evMouseDown, evMouseUp, evMouseMove, evMouseAuto, evMouseWheel:
         if Emu.MouseMode <> 0 then
         begin
