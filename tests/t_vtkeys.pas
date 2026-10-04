@@ -3,6 +3,9 @@ program t_vtkeys;
 uses TvEvents, TvKeys, TvVtKeys;
 {$I testlib.inc}
 
+var
+  KeyUp: TEvent;
+
 function Key(Code: Word; Mods: Word): TEvent;
 begin
   FillChar(Result, SizeOf(Result), 0);
@@ -54,6 +57,23 @@ begin
   Check(VtKeyBytes(Key(kbF11, 0), False) = #27'[23~', 'F11');
   Check(VtKeyBytes(Key(kbF12, kbLeftAlt), False) = #27'[24;3~', 'Alt-F12');
   Check(VtKeyBytes(Key(0, kbLeftShift), False) = '', 'a modifier alone has no bytes');
+
+  { the win32 input mode: ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _ }
+  Check(VtKeyBytes(TextKey('a', 0), False, True) = #27'[65;30;97;1;0;1_', 'win32: a');
+  Check(VtKeyBytes(TextKey('A', kbLeftShift), False, True) = #27'[65;30;65;1;16;1_', 'win32: Shift+A');
+  Check(VtKeyBytes(TextKey('c', kbLeftCtrl), False, True) = #27'[67;46;3;1;8;1_', 'win32: Ctrl+C: the control character');
+  Check(VtKeyBytes(Key(kbEnter, 0), False, True) = #27'[13;28;13;1;0;1_', 'win32: Enter');
+  Check(VtKeyBytes(Key(kbUp, 0), False, True) = #27'[38;72;0;1;256;1_', 'win32: Up is an enhanced key');
+  Check(VtKeyBytes(Key(kbF5, kbLeftAlt), False, True) = #27'[116;63;0;1;2;1_', 'win32: Alt+F5');
+  Check(VtKeyBytes(TextKey('п', 0), False, True) = #27'[231;0;1087;1;0;1_', 'win32: a character that is not a key is VK_PACKET');
+  Check(VtKeyBytes(TextKey(#$F0#$9F#$98#$80, 0), False, True) = #27'[231;0;55357;1;0;1_'#27'[231;0;56832;1;0;1_', 'win32: above U+FFFF a pair of units');
+  KeyUp := TextKey('a', 0);
+  KeyUp.What := evKeyUp;
+  Check(VtKeyBytes(KeyUp, False, True) = #27'[65;30;97;0;0;1_', 'win32: the release of a key');
+  Check(VtKeyBytes(KeyUp, False, False) = '', 'the release is not sent to a program that did not ask for the win32 mode');
+  KeyUp.RepeatCount := 4;
+  KeyUp.What := evKeyDown;
+  Check(VtKeyBytes(KeyUp, False, True) = #27'[65;30;97;1;0;4_', 'win32: the repeat count');
 
   Check(VtMouseBytes(1000, 1006, 4, 9, 0, True, False, 0, 0) = #27'[<0;5;10M', 'SGR: left press at (4, 9)');
   Check(VtMouseBytes(1000, 1006, 4, 9, 0, False, False, 0, 0) = #27'[<0;5;10m', 'SGR: left release');

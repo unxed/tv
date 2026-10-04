@@ -12,8 +12,9 @@ interface
 uses
   TvEvents;
 
-{ the bytes for a key event; '' when the key has none (a modifier alone, a key that no terminal sends) }
-function VtKeyBytes(const Event: TEvent; AppCursor: Boolean): AnsiString;
+{ the bytes for a key event; '' when the key has none (a modifier alone, a key that no terminal sends). Win32: the program asked for the win32 input mode (ESC [ ? 9001 h):
+  every key and every release (evKeyUp) is ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _ (the fields of KEY_EVENT_RECORD); a character above U+FFFF is a pair of such sequences. }
+function VtKeyBytes(const Event: TEvent; AppCursor: Boolean; Win32: Boolean = False): AnsiString;
 
 { the report of a mouse event at the cell (X, Y) of the terminal (0-based) for the mouse mode (9, 1000, 1002, 1003) and the encoding (0, 1005, 1006, 1015).
   Press: Down = True, Button 0..2 (left, middle, right); release: Down = False; wheel: Wheel 1 (up) or 2 (down); a move: Moved = True.
@@ -66,7 +67,44 @@ begin
   end;
 end;
 
-function VtKeyBytes(const Event: TEvent; AppCursor: Boolean): AnsiString;
+{ the win32 input mode: the sequence of one KEY_EVENT_RECORD }
+function Win32Seq(Vk, Sc, Uc, Kd, Cs, Rc: LongInt): AnsiString;
+begin
+  Result := #27'[' + IntStr(Vk) + ';' + IntStr(Sc) + ';' + IntStr(Uc) + ';' + IntStr(Kd) + ';' + IntStr(Cs) + ';' + IntStr(Rc) + '_';
+end;
+
+function Win32KeyBytes(const Event: TEvent): AnsiString;
+var
+  Vk, Sc, Cs, Rc, Kd, N: LongInt;
+  Hi, Lo: Word;
+begin
+  Vk := EventVirtualKey(Event);
+  Cs := EventWin32State(Event);
+  Rc := Event.RepeatCount;
+  if Rc < 1 then
+    Rc := 1;
+  Kd := Ord(Event.What <> evKeyUp);
+  N := EventUtf16(Event, Hi, Lo);
+  if (Vk = 0) and (N = 0) then
+    Exit('');                                     { a key that has no name and no text }
+  if Vk = 0 then
+    Vk := $E7;                                    { VK_PACKET: a character that is not a key }
+  Sc := EventScanCode(Event);
+  { Ctrl and a letter is the control character, as Windows tells it }
+  if (N = 1) and ((Cs and (wkLeftCtrl or wkRightCtrl)) <> 0) and ((Cs and (wkLeftAlt or wkRightAlt)) = 0) then
+  begin
+    if (Lo >= Ord('a')) and (Lo <= Ord('z')) then
+      Lo := Lo - 32;
+    if (Lo >= Ord('@')) and (Lo <= Ord('_')) then
+      Lo := Lo - 64;
+  end;
+  if N = 2 then
+    Result := Win32Seq(Vk, Sc, Hi, Kd, Cs, Rc) + Win32Seq(Vk, Sc, Lo, Kd, Cs, Rc)
+  else
+    Result := Win32Seq(Vk, Sc, Lo, Kd, Cs, Rc);
+end;
+
+function VtKeyBytes(const Event: TEvent; AppCursor: Boolean; Win32: Boolean): AnsiString;
 var
   Mods: Word;
   K: Word;
@@ -75,6 +113,10 @@ var
   I: Integer;
 begin
   Result := '';
+  if Win32 then
+    Exit(Win32KeyBytes(Event));
+  if Event.What = evKeyUp then
+    Exit('');                                    { the releases are only for the win32 input mode }
   Mods := Event.ControlKeyState;
   K := Event.KeyCode;
   case K of

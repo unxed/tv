@@ -6,6 +6,7 @@ uses TvGeom, TvKeys, TvEvents;
 var
   E: TEvent;
   K: TKey;
+  Hi, Lo: Word;
 begin
   Check(evMouse = (evMouseDown or evMouseUp or evMouseMove or evMouseAuto or evMouseWheel),
     'evMouse is the union of the mouse events');
@@ -60,5 +61,21 @@ begin
   E.TextLength := 9;
   Check(Length(EventText(E)) = 4, 'text length is capped');
 
+  { the fields of the win32 input mode: what the event does not tell is worked out from the key code }
+  MakeKeyEvent(E, Ord('a'), 0);
+  Check((EventVirtualKey(E) = 65) and (EventScanCode(E) = $1E) and (EventWin32State(E) = 0), 'win32 fields: a');
+  MakeKeyEvent(E, Ord('a'), kbShift or kbCtrlShift or kbAltShift);
+  Check(EventWin32State(E) = (wkShift or wkLeftCtrl or wkLeftAlt), 'win32 fields: the modifiers');
+  MakeKeyEvent(E, kbLeft, 0);
+  Check((EventVirtualKey(E) = $25) and (EventScanCode(E) = $4B) and ((EventWin32State(E) and wkEnhanced) <> 0), 'win32 fields: Left');
+  MakeKeyEvent(E, kbCtrlLeft, 0);
+  Check((EventVirtualKey(E) = $25) and (EventScanCode(E) = $4B), 'win32 fields: Ctrl+Left is the key Left');
+  MakeKeyEvent(E, kbF5, 0);
+  Check((EventVirtualKey(E) = $74) and (EventScanCode(E) = $3F), 'win32 fields: F5');
+  E.VirtualKey := 77;
+  E.Win32State := $0108;
+  Check((EventVirtualKey(E) = 77) and (EventWin32State(E) = $0108), 'win32 fields: what the terminal told is not changed');
+  MakeKeyEvent(E, Ord('a'), 0);
+  Check((EventUtf16(E, Hi, Lo) = 1) and (Lo = 97), 'win32 fields: the UTF-16 unit of the text');
   Finish;
 end.

@@ -96,6 +96,7 @@ type
     CursorVisible: Boolean;
     CursorShape: Integer;                { DECSCUSR: 0/1 blinking block, 2 block, 3/4 underline, 5/6 bar }
     AppCursor, AppKeypad, BracketedPaste, FocusEvents, ReverseScreen: Boolean;
+    Win32Input: Boolean;                 { ESC [ ? 9001 h: the program wants the keys as KEY_EVENT_RECORDs (TvVtKeys) and their releases }
     MouseMode: Integer;                  { 0: none, 9, 1000 (press and release), 1002 (and drag), 1003 (all moves) }
     MouseEnc: Integer;                   { 0: X10 bytes, 1005 (UTF-8), 1006 (SGR), 1015 (urxvt) }
     Title: AnsiString;
@@ -271,6 +272,7 @@ begin
   Autowrap := True; Origin := False; Insert := False; NewLine := False;
   CursorVisible := True; CursorShape := 0;
   AppCursor := False; AppKeypad := False; BracketedPaste := False; FocusEvents := False; ReverseScreen := False;
+  Win32Input := False;
   MouseMode := 0; MouseEnc := 0;
   Title := '';
   SetLength(Tabs, FCols);
@@ -802,6 +804,7 @@ begin
       else if MouseEnc = Mode then
         MouseEnc := 0;
     1004: FocusEvents := On;
+    9001: Win32Input := On;
     2004: BracketedPaste := On;
   end;
 end;

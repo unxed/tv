@@ -40,6 +40,11 @@ raw mode, ANSI output, key and mouse reports; the terminal protocols are in `DES
 The clipboard: `TvClip` keeps the text of the program; it goes to the system clipboard (Windows), to the far2l terminal, or to the terminal by **OSC 52** (`TV_CLIPBOARD=0` switches that off).
 Reading the clipboard of the terminal by OSC 52 (`ESC ] 52 ; c ; ? ESC \`) is **off by default** (most terminals refuse, some ask the user): `TV_OSC52_READ=1` turns it on, `TV_OSC52_WAIT` is the wait in ms (400);
 a terminal that does not answer is not asked again for a minute. In the embedded terminal (`TvVt`) a program sets the clipboard by OSC 52 and reads it with `?`: the answer comes from the clipboard of the application.
+**The keyboard event keeps what the win32 input mode tells** (2026-10-04): besides `KeyCode`, `Text` and `ControlKeyState` a key event has `VirtualKey` (VK_*), `RepeatCount` and `Win32State`
+(dwControlKeyState: the left and the right Alt and Ctrl are told apart); where the terminal tells nothing (xterm, Kitty) `EventVirtualKey`, `EventScanCode`, `EventWin32State` and `EventUtf16` work the
+fields out from the key code (a US layout). The release of a key is `evKeyUp`: it is made only if a program asks (`TvSys.KeyUpEvents := True`) and the terminal sends it; it goes the way of a key but
+only a view with `evKeyUp` in its `EventMask` gets it, so nothing that knows nothing of it changes. The embedded terminal (`TvVt`) takes a program's request `ESC [ ? 9001 h` (`Emu.Win32Input`):
+`VtKeyBytes(Event, AppCursor, True)` gives `ESC [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _` for every key and release (a pair of such sequences above U+FFFF), and `TvVtView`/`TvVtRun` ask the backend for the releases.
 The embedded terminal: `TvVt` (emulator),
 `TvPty` (a pty and the program), `TvVtKeys`, `TvVtView` (the view), `TvVtRun` (run a program on the whole screen and keep what it drew).
 
