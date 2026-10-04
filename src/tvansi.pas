@@ -59,6 +59,9 @@ type
     procedure PutNum(N: Integer);
   public
     procedure Init(const ACap: TTermCap);
+    { another capabilities (the terminal told more than its name did): the colors that are written from now on }
+    procedure SetCap(const ACap: TTermCap);
+    function Capabilities: TTermCap;
     procedure Done;
     { forget what the terminal shows: the next cell moves the cursor and sets the attributes }
     procedure Reset;
@@ -272,6 +275,17 @@ begin
   CaretX := -1;
   CaretY := -1;
   FillChar(Last, SizeOf(Last), 0);
+end;
+
+procedure TAnsiWriter.SetCap(const ACap: TTermCap);
+begin
+  Cap := ACap;
+  FillChar(Last, SizeOf(Last), 0);      { what the terminal shows is not known in the new colors: the next cell sets the attributes }
+end;
+
+function TAnsiWriter.Capabilities: TTermCap;
+begin
+  Result := Cap;
 end;
 
 procedure TAnsiWriter.Done;
